@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="container has-bottom-bar">
     <div class="header-nav">
       <button class="btn btn-outline" @click="goBack" style="padding: 0.5rem;">
         <ArrowLeftIcon size="20" />
@@ -26,7 +26,7 @@
         :format-currency="formatCurrency" 
       />
 
-      <div class="flex gap-4" style="margin-bottom: 2rem;">
+      <div class="flex gap-4 mobile-action-bar" style="margin-bottom: 2rem;">
         <button class="btn btn-success flex-1" @click="openTransactionModal('income')">
           <PlusIcon size="18" /> Income
         </button>

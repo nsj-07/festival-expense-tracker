@@ -34,13 +34,6 @@ defineProps<{
   margin-bottom: 2rem;
 }
 
-@media (max-width: 640px) {
-  .summary-cards {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-}
-
 .summary-card {
   background-color: var(--color-card-bg);
   border-radius: var(--radius-lg);
@@ -54,6 +47,20 @@ defineProps<{
   align-items: center;
 }
 
+@media (max-width: 640px) {
+  .summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .summary-card {
+    padding: 0.75rem;
+  }
+  .summary-card.balance {
+    grid-column: span 2;
+  }
+}
+
 .summary-title {
   font-size: 0.875rem;
   color: var(--color-text-muted);
@@ -63,9 +70,22 @@ defineProps<{
   letter-spacing: 0.05em;
 }
 
+@media (max-width: 640px) {
+  .summary-title {
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
 .summary-amount {
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .summary-amount {
+    font-size: 1.25rem;
+  }
 }
 
 .balance.positive .summary-amount {

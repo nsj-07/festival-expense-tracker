@@ -132,6 +132,34 @@
   .grid-cols-3 {
     grid-template-columns: 1fr;
   }
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .mobile-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background-color: var(--color-card-bg);
+    border-top: 1px solid var(--color-border);
+    z-index: 40;
+    display: flex;
+    gap: 1rem;
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .mobile-action-bar .btn {
+    flex: 1;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: var(--radius-lg);
+  }
+  
+  .has-bottom-bar {
+    padding-bottom: 6rem;
+  }
 }
 
 .modal-overlay {
