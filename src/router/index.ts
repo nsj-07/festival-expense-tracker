@@ -11,8 +11,13 @@ const router = createRouter({
     },
     {
       path: '/festival/:festivalId',
-      name: 'dashboard',
+      name: 'festival',
       component: () => import('../views/FestivalDashboardView.vue'),
+    },
+    {
+      path: '/collections',
+      name: 'collections',
+      component: () => import('../views/CollectionsView.vue'),
     },
   ],
 })

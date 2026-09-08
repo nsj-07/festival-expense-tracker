@@ -1,11 +1,17 @@
 <template>
   <div class="container">
-    <div class="flex justify-between items-center" style="margin-bottom: 2rem;">
+    <div class="flex flex-wrap justify-between items-center" style="margin-bottom: 2rem; gap: 1rem;">
       <h1 style="font-size: 1.5rem; font-weight: 700;">My Festivals</h1>
-      <button class="btn btn-primary" @click="openCreateModal">
-        <PlusIcon size="20" />
-        <span class="hidden-xs">Create Festival</span>
-      </button>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" @click="goToCollections">
+          <BookOpenIcon size="20" />
+          <span class="hidden-xs">Collections</span>
+        </button>
+        <button class="btn btn-primary" @click="openCreateModal">
+          <PlusIcon size="20" />
+          <span class="hidden-xs">Create Festival</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="text-center text-muted" style="padding: 3rem;">
@@ -66,7 +72,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Plus as PlusIcon, Calendar as CalendarIcon, Edit2 as Edit2Icon, Trash2 as Trash2Icon } from 'lucide-vue-next';
+import { Plus as PlusIcon, Calendar as CalendarIcon, Edit2 as Edit2Icon, Trash2 as Trash2Icon, BookOpen as BookOpenIcon } from 'lucide-vue-next';
 import { useFestivals } from '@/composables/useFestivals';
 import type { Festival } from '@/db/database';
 
@@ -91,6 +97,10 @@ const formatDate = (ts: number) => {
 
 const goToFestival = (id: string) => {
   router.push(`/festival/${id}`);
+};
+
+const goToCollections = () => {
+  router.push('/collections');
 };
 
 const openCreateModal = () => {

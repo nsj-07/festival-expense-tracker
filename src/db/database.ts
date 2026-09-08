@@ -19,15 +19,35 @@ export interface Transaction {
   updatedAt: number;
 }
 
+export interface Collection {
+  id?: string;
+  type: 'collection' | 'transfer';
+  amount: number;
+  houseNumber?: string; // Only for 'collection'
+  festivalId?: string;  // Only for 'transfer'
+  transactionId?: string; // Link to the income transaction created
+  createdAt: number;
+  updatedAt: number;
+}
+
 export class FestivalTrackerDB extends Dexie {
   festivals!: Table<Festival, string>;
   transactions!: Table<Transaction, string>;
+  collections!: Table<Collection, string>;
 
   constructor() {
     super('FestivalTrackerDB');
-    this.version(1).stores({
+    this.version(3).stores({
       festivals: 'id, name, createdAt, updatedAt',
-      transactions: 'id, festivalId, type, date, title, amount, createdAt, updatedAt'
+      transactions: 'id, festivalId, type, date, title, amount, createdAt, updatedAt',
+      collections: 'id, type, houseNumber, festivalId, createdAt, updatedAt'
+    }).upgrade(tx => {
+      // Migrate old collections if they exist
+      return tx.table('collections').toCollection().modify(col => {
+        if (!col.type) {
+          col.type = 'collection';
+        }
+      });
     });
   }
 }

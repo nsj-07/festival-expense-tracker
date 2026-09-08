@@ -35,11 +35,13 @@
         </button>
       </div>
 
-      <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+      <div class="section-header">
         <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Transactions</h2>
-        <button class="btn btn-outline btn-sm flex items-center gap-2" @click="exportToExcel">
-          <DownloadIcon size="16" /> Export Excel
-        </button>
+        <div class="header-actions">
+          <button class="btn btn-outline btn-sm flex items-center gap-1" @click="exportToExcel">
+            <DownloadIcon size="16" /> <span class="btn-text">Export</span>
+          </button>
+        </div>
       </div>
       
       <TransactionList 
@@ -162,9 +164,7 @@ const exportToExcel = () => {
     return;
   }
 
-  // Create a CSV with explicit Income and Expense columns
   const headers = ['Date', 'Title', 'Description', 'Income', 'Expense'];
-  
   const rows = transactions.value.map(tx => {
     const isIncome = tx.type === 'income';
     return [
@@ -192,6 +192,8 @@ const exportToExcel = () => {
   link.click();
   document.body.removeChild(link);
 };
+
+
 </script>
 
 <style scoped>
@@ -216,9 +218,38 @@ const exportToExcel = () => {
 .btn-success {
   background-color: var(--color-success);
   color: white;
+  border: none;
 }
 
 .btn-success:hover {
   background-color: #059669; /* darker success */
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background-color: #be123c; /* darker danger */
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .btn-text {
+    display: none;
+  }
 }
 </style>
