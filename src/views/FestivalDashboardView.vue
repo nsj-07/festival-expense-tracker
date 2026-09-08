@@ -35,7 +35,12 @@
         </button>
       </div>
 
-      <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Transactions</h2>
+      <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Transactions</h2>
+        <button class="btn btn-outline btn-sm flex items-center gap-2" @click="exportToExcel">
+          <DownloadIcon size="16" /> Export Excel
+        </button>
+      </div>
       
       <TransactionList 
         :transactions="transactions"
@@ -63,7 +68,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeft as ArrowLeftIcon, Plus as PlusIcon, Minus as MinusIcon } from 'lucide-vue-next';
+import { ArrowLeft as ArrowLeftIcon, Plus as PlusIcon, Minus as MinusIcon, Download as DownloadIcon } from 'lucide-vue-next';
 import { festivalRepository } from '@/repositories/festivalRepository';
 import { useTransactions } from '@/composables/useTransactions';
 import { useFestivalSummary } from '@/composables/useFestivalSummary';
@@ -149,6 +154,43 @@ const handleTxSubmit = async (data: Omit<Transaction, 'id' | 'createdAt' | 'upda
   }
   // Refresh festival data to update timestamp
   festival.value = await festivalRepository.getById(festivalId) || null;
+};
+
+const exportToExcel = () => {
+  if (!festival.value || transactions.value.length === 0) {
+    alert("No transactions to export.");
+    return;
+  }
+
+  // Create a CSV with explicit Income and Expense columns
+  const headers = ['Date', 'Title', 'Description', 'Income', 'Expense'];
+  
+  const rows = transactions.value.map(tx => {
+    const isIncome = tx.type === 'income';
+    return [
+      `"${tx.date}"`,
+      `"${tx.title.replace(/"/g, '""')}"`,
+      `"${(tx.description || '').replace(/"/g, '""')}"`,
+      isIncome ? tx.amount : '',
+      !isIncome ? tx.amount : ''
+    ];
+  });
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${festival.value.name.replace(/\s+/g, '_')}_Transactions.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 </script>
 
