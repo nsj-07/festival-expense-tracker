@@ -1,59 +1,46 @@
-import { db, type Transaction } from '../db/database';
-
-function generateId() {
-  return crypto.randomUUID();
-}
+import { db } from '../db/firebase';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import type { Transaction } from '../db/database';
 
 export const transactionRepository = {
   async getAllByFestivalId(festivalId: string): Promise<Transaction[]> {
-    return await db.transactions
-      .where('festivalId')
-      .equals(festivalId)
-      .reverse()
-      .sortBy('date');
-  },
-
-  async getById(id: string): Promise<Transaction | undefined> {
-    return await db.transactions.get(id);
+    const q = query(collection(db, 'transactions'), where('festivalId', '==', festivalId));
+    const querySnapshot = await getDocs(q);
+    const transactions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+    
+    // Sort descending by date, then by created at
+    return transactions.sort((a, b) => {
+      if (a.date === b.date) {
+        return b.createdAt - a.createdAt;
+      }
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
   },
 
   async create(data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>): Promise<Transaction> {
     const now = Date.now();
-    const transaction: Transaction = {
-      ...data,
-      id: generateId(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.transactions.add(transaction);
-    
-    // Update festival's updatedAt
-    await db.festivals.update(data.festivalId, { updatedAt: now });
-    
-    return transaction;
+    const transaction = { ...data, createdAt: now, updatedAt: now };
+    const docRef = await addDoc(collection(db, 'transactions'), transaction);
+    return { ...transaction, id: docRef.id };
   },
 
-  async update(id: string, data: Partial<Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'festivalId'>>): Promise<void> {
-    const transaction = await db.transactions.get(id);
-    if (!transaction) return;
-
-    const now = Date.now();
-    await db.transactions.update(id, {
+  async update(id: string, data: Partial<Omit<Transaction, 'id' | 'festivalId' | 'createdAt' | 'updatedAt'>>): Promise<void> {
+    const docRef = doc(db, 'transactions', id);
+    await updateDoc(docRef, {
       ...data,
-      updatedAt: now,
+      updatedAt: Date.now()
     });
-    
-    // Update festival's updatedAt
-    await db.festivals.update(transaction.festivalId, { updatedAt: now });
   },
 
   async delete(id: string): Promise<void> {
-    const transaction = await db.transactions.get(id);
-    if (!transaction) return;
-
-    await db.transactions.delete(id);
+    await deleteDoc(doc(db, 'transactions', id));
+  },
+  
+  async deleteAllByFestivalId(festivalId: string): Promise<void> {
+    const q = query(collection(db, 'transactions'), where('festivalId', '==', festivalId));
+    const querySnapshot = await getDocs(q);
     
-    // Update festival's updatedAt
-    await db.festivals.update(transaction.festivalId, { updatedAt: Date.now() });
+    const deletePromises = querySnapshot.docs.map(document => deleteDoc(doc(db, 'transactions', document.id)));
+    await Promise.all(deletePromises);
   }
 };

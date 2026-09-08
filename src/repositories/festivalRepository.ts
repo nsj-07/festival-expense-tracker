@@ -1,47 +1,39 @@
-import { db, type Festival } from '../db/database';
-import { transactionRepository } from './transactionRepository';
-
-function generateId() {
-  return crypto.randomUUID();
-}
+import { db } from '../db/firebase';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import type { Festival } from '../db/database';
 
 export const festivalRepository = {
   async getAll(): Promise<Festival[]> {
-    return await db.festivals.orderBy('updatedAt').reverse().toArray();
+    const querySnapshot = await getDocs(collection(db, 'festivals'));
+    const festivals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Festival));
+    return festivals.sort((a, b) => b.createdAt - a.createdAt);
   },
 
   async getById(id: string): Promise<Festival | undefined> {
-    return await db.festivals.get(id);
+    const docRef = doc(db, 'festivals', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Festival;
+    }
+    return undefined;
   },
 
   async create(data: Omit<Festival, 'id' | 'createdAt' | 'updatedAt'>): Promise<Festival> {
     const now = Date.now();
-    const festival: Festival = {
-      ...data,
-      id: generateId(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.festivals.add(festival);
-    return festival;
+    const festival = { ...data, createdAt: now, updatedAt: now };
+    const docRef = await addDoc(collection(db, 'festivals'), festival);
+    return { ...festival, id: docRef.id };
   },
 
-  async update(id: string, data: Partial<Omit<Festival, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
-    await db.festivals.update(id, {
-      ...data,
-      updatedAt: Date.now(),
+  async update(id: string, name: string): Promise<void> {
+    const docRef = doc(db, 'festivals', id);
+    await updateDoc(docRef, {
+      name,
+      updatedAt: Date.now()
     });
   },
 
   async delete(id: string): Promise<void> {
-    await db.transaction('rw', db.festivals, db.transactions, async () => {
-      // Delete all transactions belonging to this festival
-      const transactions = await db.transactions.where('festivalId').equals(id).toArray();
-      const transactionIds = transactions.map(t => t.id).filter((t): t is string => !!t);
-      await db.transactions.bulkDelete(transactionIds);
-      
-      // Delete the festival itself
-      await db.festivals.delete(id);
-    });
+    await deleteDoc(doc(db, 'festivals', id));
   }
 };

@@ -1,4 +1,5 @@
-import Dexie, { type Table } from 'dexie';
+// This file now only holds interfaces. 
+// Database logic has moved to firebase.ts and individual repositories.
 
 export interface Festival {
   id?: string;
@@ -11,7 +12,7 @@ export interface Transaction {
   id?: string;
   festivalId: string;
   type: 'income' | 'expense';
-  date: string;
+  date: string; // YYYY-MM-DD
   title: string;
   description?: string;
   amount: number;
@@ -29,27 +30,3 @@ export interface Collection {
   createdAt: number;
   updatedAt: number;
 }
-
-export class FestivalTrackerDB extends Dexie {
-  festivals!: Table<Festival, string>;
-  transactions!: Table<Transaction, string>;
-  collections!: Table<Collection, string>;
-
-  constructor() {
-    super('FestivalTrackerDB');
-    this.version(3).stores({
-      festivals: 'id, name, createdAt, updatedAt',
-      transactions: 'id, festivalId, type, date, title, amount, createdAt, updatedAt',
-      collections: 'id, type, houseNumber, festivalId, createdAt, updatedAt'
-    }).upgrade(tx => {
-      // Migrate old collections if they exist
-      return tx.table('collections').toCollection().modify(col => {
-        if (!col.type) {
-          col.type = 'collection';
-        }
-      });
-    });
-  }
-}
-
-export const db = new FestivalTrackerDB();
