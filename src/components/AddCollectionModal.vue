@@ -65,12 +65,12 @@ const emit = defineEmits<{
 }>();
 
 const houseNumber = ref('');
-const amount = ref<number | ''>('');
+const amount = ref<number | ''>(1700);
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     houseNumber.value = '';
-    amount.value = '';
+    amount.value = 1700;
   }
 });
 
