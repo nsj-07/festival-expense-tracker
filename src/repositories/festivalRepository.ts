@@ -1,8 +1,18 @@
 import { db } from '../db/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import type { Festival } from '../db/database';
 
 export const festivalRepository = {
+  subscribeToAll(onUpdate: (festivals: Festival[]) => void): () => void {
+    return onSnapshot(collection(db, 'festivals'), (snapshot) => {
+      const festivals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Festival));
+      festivals.sort((a, b) => b.createdAt - a.createdAt);
+      onUpdate(festivals);
+    }, (error) => {
+      console.error("Error subscribing to festivals:", error);
+    });
+  },
+
   async getAll(): Promise<Festival[]> {
     const querySnapshot = await getDocs(collection(db, 'festivals'));
     const festivals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Festival));

@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import { type Festival } from '../db/database';
 import { festivalRepository } from '../repositories/festivalRepository';
 
@@ -6,24 +6,38 @@ export function useFestivals() {
   const festivals = ref<Festival[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  let unsubscribe: (() => void) | null = null;
 
-  const fetchFestivals = async () => {
+  const fetchFestivals = () => {
     loading.value = true;
     error.value = null;
-    try {
-      festivals.value = await festivalRepository.getAll();
-    } catch (err: any) {
-      console.error(err);
-      error.value = 'Failed to load festivals.';
-    } finally {
-      loading.value = false;
-    }
+    
+    return new Promise<void>((resolve) => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      
+      let isFirstFetch = true;
+      unsubscribe = festivalRepository.subscribeToAll((data) => {
+        festivals.value = data;
+        loading.value = false;
+        
+        if (isFirstFetch) {
+          isFirstFetch = false;
+          resolve();
+        }
+      });
+    });
   };
+
+  onUnmounted(() => {
+    if (unsubscribe) unsubscribe();
+  });
 
   const createFestival = async (name: string) => {
     try {
       await festivalRepository.create({ name });
-      await fetchFestivals();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to create festival.');
@@ -33,7 +47,7 @@ export function useFestivals() {
   const updateFestival = async (id: string, name: string) => {
     try {
       await festivalRepository.update(id, { name });
-      await fetchFestivals();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to update festival.');
@@ -43,7 +57,7 @@ export function useFestivals() {
   const deleteFestival = async (id: string) => {
     try {
       await festivalRepository.delete(id);
-      await fetchFestivals();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to delete festival.');

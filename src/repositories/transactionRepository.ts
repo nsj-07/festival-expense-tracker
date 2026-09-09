@@ -1,8 +1,26 @@
 import { db } from '../db/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot } from 'firebase/firestore';
 import type { Transaction } from '../db/database';
 
 export const transactionRepository = {
+  subscribeToFestivalTransactions(festivalId: string, onUpdate: (transactions: Transaction[]) => void): () => void {
+    const q = query(collection(db, 'transactions'), where('festivalId', '==', festivalId));
+    return onSnapshot(q, (snapshot) => {
+      const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+      
+      transactions.sort((a, b) => {
+        if (a.date === b.date) {
+          return b.createdAt - a.createdAt;
+        }
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+      
+      onUpdate(transactions);
+    }, (error) => {
+      console.error("Error subscribing to transactions:", error);
+    });
+  },
+
   async getAllByFestivalId(festivalId: string): Promise<Transaction[]> {
     const q = query(collection(db, 'transactions'), where('festivalId', '==', festivalId));
     const querySnapshot = await getDocs(q);

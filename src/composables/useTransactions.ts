@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { type Transaction } from '../db/database';
 import { transactionRepository } from '../repositories/transactionRepository';
 
@@ -10,24 +10,38 @@ export function useTransactions(festivalId: string) {
   const filterType = ref<'all' | 'income' | 'expense'>('all');
   const filterDate = ref<'newest' | 'oldest'>('newest');
   const searchQuery = ref('');
+  let unsubscribe: (() => void) | null = null;
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = () => {
     loading.value = true;
     error.value = null;
-    try {
-      transactions.value = await transactionRepository.getAllByFestivalId(festivalId);
-    } catch (err: any) {
-      console.error(err);
-      error.value = 'Failed to load transactions.';
-    } finally {
-      loading.value = false;
-    }
+    
+    return new Promise<void>((resolve) => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      
+      let isFirstFetch = true;
+      unsubscribe = transactionRepository.subscribeToFestivalTransactions(festivalId, (data) => {
+        transactions.value = data;
+        loading.value = false;
+        
+        if (isFirstFetch) {
+          isFirstFetch = false;
+          resolve();
+        }
+      });
+    });
   };
+
+  onUnmounted(() => {
+    if (unsubscribe) unsubscribe();
+  });
 
   const addTransaction = async (data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'festivalId'>) => {
     try {
       await transactionRepository.create({ ...data, festivalId });
-      await fetchTransactions();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to add transaction.');
@@ -37,7 +51,7 @@ export function useTransactions(festivalId: string) {
   const editTransaction = async (id: string, data: Partial<Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'festivalId'>>) => {
     try {
       await transactionRepository.update(id, data);
-      await fetchTransactions();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to edit transaction.');
@@ -47,7 +61,7 @@ export function useTransactions(festivalId: string) {
   const removeTransaction = async (id: string) => {
     try {
       await transactionRepository.delete(id);
-      await fetchTransactions();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to delete transaction.');

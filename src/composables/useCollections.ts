@@ -1,5 +1,5 @@
-import { ref, computed } from 'vue';
-import { type Collection } from '../db/database';
+import { ref, computed, onUnmounted } from 'vue';
+import { type Collection, type Transaction } from '../db/database';
 import { collectionRepository } from '../repositories/collectionRepository';
 import { transactionRepository } from '../repositories/transactionRepository';
 import { festivalRepository } from '../repositories/festivalRepository';
@@ -38,6 +38,7 @@ export function useCollections() {
   const collections = ref<Collection[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  let unsubscribe: (() => void) | null = null;
 
   // Compute balances
   const totalCollected = computed(() => {
@@ -56,18 +57,31 @@ export function useCollections() {
     return totalCollected.value - totalTransferred.value;
   });
 
-  const fetchCollections = async () => {
+  const fetchCollections = () => {
     loading.value = true;
     error.value = null;
-    try {
-      collections.value = await collectionRepository.getAll();
-    } catch (err: any) {
-      console.error(err);
-      error.value = 'Failed to load collections.';
-    } finally {
-      loading.value = false;
-    }
+    
+    return new Promise<void>((resolve) => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      
+      let isFirstFetch = true;
+      unsubscribe = collectionRepository.subscribeToAll((data) => {
+        collections.value = data;
+        loading.value = false;
+        
+        if (isFirstFetch) {
+          isFirstFetch = false;
+          resolve();
+        }
+      });
+    });
   };
+
+  onUnmounted(() => {
+    if (unsubscribe) unsubscribe();
+  });
 
   const addCollection = async (houseNumber: string, amount: number) => {
     try {
@@ -76,45 +90,42 @@ export function useCollections() {
         houseNumber,
         amount
       });
-      await fetchCollections();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to add collection.');
     }
   };
 
-  const transferToFestival = async (festivalId: string, amount: number) => {
-    if (amount > availableBalance.value) {
-      throw new Error('Insufficient collection balance to transfer this amount.');
-    }
-
+  const transferToFestival = async (festivalId: string, amount: number, title?: string, description?: string) => {
     try {
-      // 1. Create a transaction (Income) in the festival
-      const dateStr = new Date().toISOString().split('T')[0];
-      const tx = await transactionRepository.create({
+      // 1. Create the income transaction in the festival
+      const txData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> = {
         festivalId,
         type: 'income',
-        date: dateStr,
-        title: `Fund Transfer from Collections`,
-        description: 'Auto-added from Collection module transfer',
-        amount: amount
-      });
-
-      // 2. Create a transfer record in collections, linked to this transaction
+        date: new Date().toISOString().split('T')[0],
+        title: title || 'Fund Transfer from Collections',
+        description,
+        amount
+      };
+      
+      const newTx = await transactionRepository.create(txData);
+      
+      // 2. Create the transfer record in collections
       await collectionRepository.create({
         type: 'transfer',
-        festivalId,
         amount,
-        transactionId: tx.id
+        festivalId,
+        transactionId: newTx.id
       });
-
-      // Update the festival timestamp
+      
+      // 3. Touch the festival to update its updatedAt timestamp
       const fest = await festivalRepository.getById(festivalId);
       if (fest) {
-        await festivalRepository.update(festivalId, fest.name); // Updates timestamp
+        await festivalRepository.update(festivalId, fest.name);
       }
-
-      await fetchCollections();
+      
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to transfer to festival.');
@@ -139,7 +150,7 @@ export function useCollections() {
         }
       }
       
-      await fetchCollections();
+      // Real-time listener handles UI update
     } catch (err: any) {
       console.error(err);
       throw new Error('Failed to delete collection entry.');
