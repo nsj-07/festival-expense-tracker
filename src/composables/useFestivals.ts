@@ -2,21 +2,22 @@ import { ref, onUnmounted } from 'vue';
 import { type Festival } from '../db/database';
 import { festivalRepository } from '../repositories/festivalRepository';
 
-export function useFestivals() {
-  const festivals = ref<Festival[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
-  let unsubscribe: (() => void) | null = null;
+// Global state
+const festivals = ref<Festival[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
+let unsubscribe: (() => void) | null = null;
+let isInitialized = false;
 
+export function useFestivals() {
   const fetchFestivals = () => {
+    if (isInitialized) return Promise.resolve();
+    
     loading.value = true;
     error.value = null;
+    isInitialized = true;
     
     return new Promise<void>((resolve) => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      
       let isFirstFetch = true;
       unsubscribe = festivalRepository.subscribeToAll((data) => {
         festivals.value = data;
@@ -31,7 +32,8 @@ export function useFestivals() {
   };
 
   onUnmounted(() => {
-    if (unsubscribe) unsubscribe();
+    // Intentionally omitted: we don't want to unsubscribe when a single component unmounts,
+    // because other components might still be using the global listener.
   });
 
   const createFestival = async (name: string) => {

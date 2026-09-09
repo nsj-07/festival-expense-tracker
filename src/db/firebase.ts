@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAGDe47YBBiwneJ4GQ6_kvKL7kBog2dEPs",
@@ -14,10 +14,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Cloud Firestore
-export const db = getFirestore(app);
-
-// Enable offline support (Crucial for PWA functionality!)
-enableIndexedDbPersistence(db).catch((err) => {
-  console.error("Firebase offline persistence failed: ", err);
+// Initialize Cloud Firestore with Multi-Tab Offline Persistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 });

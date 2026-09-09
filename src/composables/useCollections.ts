@@ -34,38 +34,39 @@ export const predefinedHouseNumbers: string[] = (() => {
   return houses;
 })();
 
+// Global state
+const collections = ref<Collection[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
+let unsubscribe: (() => void) | null = null;
+let isInitialized = false;
+
+// Compute balances globally
+const totalCollected = computed(() => {
+  return collections.value
+    .filter(c => c.type === 'collection')
+    .reduce((sum, c) => sum + c.amount, 0);
+});
+
+const totalTransferred = computed(() => {
+  return collections.value
+    .filter(c => c.type === 'transfer')
+    .reduce((sum, c) => sum + c.amount, 0);
+});
+
+const availableBalance = computed(() => {
+  return totalCollected.value - totalTransferred.value;
+});
+
 export function useCollections() {
-  const collections = ref<Collection[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
-  let unsubscribe: (() => void) | null = null;
-
-  // Compute balances
-  const totalCollected = computed(() => {
-    return collections.value
-      .filter(c => c.type === 'collection')
-      .reduce((sum, c) => sum + c.amount, 0);
-  });
-
-  const totalTransferred = computed(() => {
-    return collections.value
-      .filter(c => c.type === 'transfer')
-      .reduce((sum, c) => sum + c.amount, 0);
-  });
-
-  const availableBalance = computed(() => {
-    return totalCollected.value - totalTransferred.value;
-  });
-
   const fetchCollections = () => {
+    if (isInitialized) return Promise.resolve();
+    
     loading.value = true;
     error.value = null;
+    isInitialized = true;
     
     return new Promise<void>((resolve) => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      
       let isFirstFetch = true;
       unsubscribe = collectionRepository.subscribeToAll((data) => {
         collections.value = data;
@@ -80,7 +81,7 @@ export function useCollections() {
   };
 
   onUnmounted(() => {
-    if (unsubscribe) unsubscribe();
+    // Intentionally omitted
   });
 
   const addCollection = async (houseNumber: string, amount: number) => {

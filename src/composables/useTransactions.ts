@@ -2,29 +2,50 @@ import { ref, computed, onUnmounted } from 'vue';
 import { type Transaction } from '../db/database';
 import { transactionRepository } from '../repositories/transactionRepository';
 
-export function useTransactions(festivalId: string) {
-  const transactions = ref<Transaction[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+// Global cache mapped by festivalId
+const transactionsCache = ref<Record<string, Transaction[]>>({});
+const loadingStates = ref<Record<string, boolean>>({});
+const errorStates = ref<Record<string, string | null>>({});
+const activeSubscriptions: Record<string, () => void> = {};
 
+export function useTransactions(festivalId: string) {
+  // Ensure basic refs exist for this festival
+  if (!transactionsCache.value[festivalId]) {
+    transactionsCache.value[festivalId] = [];
+    loadingStates.value[festivalId] = false;
+    errorStates.value[festivalId] = null;
+  }
+
+  // Map global state to component-friendly computed properties
+  const transactions = computed(() => transactionsCache.value[festivalId] || []);
+  const loading = computed({
+    get: () => loadingStates.value[festivalId] || false,
+    set: (val) => { loadingStates.value[festivalId] = val; }
+  });
+  const error = computed({
+    get: () => errorStates.value[festivalId] || null,
+    set: (val) => { errorStates.value[festivalId] = val; }
+  });
+
+  // Component-local filters (we don't want these shared across all views)
   const filterType = ref<'all' | 'income' | 'expense'>('all');
   const filterDate = ref<'newest' | 'oldest'>('newest');
   const searchQuery = ref('');
-  let unsubscribe: (() => void) | null = null;
 
   const fetchTransactions = () => {
-    loading.value = true;
-    error.value = null;
+    // If we are already subscribed to this festival, just resolve immediately
+    if (activeSubscriptions[festivalId]) {
+      return Promise.resolve();
+    }
+    
+    loadingStates.value[festivalId] = true;
+    errorStates.value[festivalId] = null;
     
     return new Promise<void>((resolve) => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      
       let isFirstFetch = true;
-      unsubscribe = transactionRepository.subscribeToFestivalTransactions(festivalId, (data) => {
-        transactions.value = data;
-        loading.value = false;
+      activeSubscriptions[festivalId] = transactionRepository.subscribeToFestivalTransactions(festivalId, (data) => {
+        transactionsCache.value[festivalId] = data;
+        loadingStates.value[festivalId] = false;
         
         if (isFirstFetch) {
           isFirstFetch = false;
@@ -35,7 +56,7 @@ export function useTransactions(festivalId: string) {
   };
 
   onUnmounted(() => {
-    if (unsubscribe) unsubscribe();
+    // Intentionally omitted
   });
 
   const addTransaction = async (data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'festivalId'>) => {
